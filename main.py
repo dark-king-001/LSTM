@@ -1,6 +1,3 @@
-# %% activating conda enviornment
-import os
-os.system("conda activate tf")
 # %% Activating tensorflow
 import tensorflow as tf 
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
@@ -9,7 +6,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 # %% reading CSV
-df = pd.read_csv('monthly_milk_production.csv',index_col='Date',parse_dates=True)
+df = pd.read_csv('datasets/monthly_milk_production.csv',index_col='Date',parse_dates=True)
 df.index.freq='MS'
 df.head(5)
 df.plot(figsize=(12,6))
