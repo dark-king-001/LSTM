@@ -4,6 +4,7 @@ from keras.layers import Dense, LSTM, RNN
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import pickle
 import tensorflow as tf 
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
@@ -15,14 +16,15 @@ data2 = np.array(data['SAT total score'])
 data3 = np.array(data['parental income'])
 data4 = np.array(data['high school gpa'])
 data5 = np.array(data['college gpa'])
+data6 = np.array(data['years to graduate'])
 # %%
 def segmentation(start,end):
     X = []
     y = []
     for i in range(start,end):
-        segment = [[data1[i]],[data2[i]],[data3[i]],[data4[i]]]
+        segment = [[data1[i]],[data2[i]],[data3[i]],[data4[i]],[data5[i]]]
         X.append(segment)
-        y.append([((data5[i]/4)-0.4)])
+        y.append([(data6[i])])
     return np.array(X),np.array(y)
 
 # %%
@@ -44,16 +46,22 @@ print(X_train.shape)
 model = Sequential()
 
 # Adding the layers to the model
-model.add(LSTM(4, input_shape=(4,1))) # LSTM layer with 8 neurons, input shape of (1, 4)
+model.add(LSTM(64, input_shape=(5,1))) # LSTM layer with 8 neurons, input shape of (1, 4)
 model.add(Dense(32, activation='relu')) # Hidden layer with neurons
 model.add(Dense(32, activation='relu')) # Hidden layer with neurons
-model.add(Dense(64, activation='relu')) # Hidden layer with neurons
-model.add(Dense(1, activation='sigmoid')) # Output layer with 1 neuron
+model.add(Dense(32, activation='relu')) # Hidden layer with neurons
+model.add(Dense(32, activation='relu')) # Hidden layer with neurons
+model.add(Dense(32, activation='relu')) # Hidden layer with neurons
+model.add(Dense(32, activation='relu')) # Hidden layer with neurons
+model.add(Dense(1, activation='linear')) # Output layer with 1 neuron
+
+linear_loss ='mean_squared_error'
+sigmoid_loss = 'binary_crossentropy'
 
 # Compiling the model
-model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.compile(loss=linear_loss, optimizer='RMSprop', metrics=['accuracy'])
 # %% Training the model
-history = model.fit(X_train, y_train, epochs=200, batch_size=1)
+history = model.fit(X_train, y_train, epochs=50, batch_size=5)
 plt.plot(history.history['loss'], label='Training Loss')
 plt.legend()
 plt.show()
@@ -64,8 +72,7 @@ plt.show()
 # evaluating model
 score = model.evaluate(X_test, y_test, batch_size=1)
 print("Accuracy: %.2f%%" % (score[0]*100))
-#%%
-
+# %%
 # printing pridiction score
 y_pred = model.predict(X_test)
 plt.plot(y_test, label='Actual')
@@ -73,7 +80,15 @@ plt.plot(y_pred, label='Predicted')
 plt.legend()
 plt.show()
 # %%
-pred_data = np.array([[[100],[162500000],[499000000],[4.0]]])
+pred_data = np.array([[[0],[0],[0],[4.0]]])
 y_pred = model.predict(pred_data)
 y_pred
+# %%
+# Save the trained model as a pickle string.
+saved_model = pickle.dumps(model)
+# %%
+saved_model
+# %%
+file = open(input("enter name of model:"),"wb")
+file.write(saved_model)
 # %%
