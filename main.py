@@ -1,103 +1,94 @@
-# %% Activating tensorflow
-import tensorflow as tf 
-print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
-# %% importing required packages
+# %% loading keras LSTM and other libs
+from keras.models import Sequential
+from keras.layers import Dense, LSTM, RNN
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-# %% reading CSV
-df = pd.read_csv('datasets/monthly_milk_production.csv',index_col='Date',parse_dates=True)
-df.index.freq='MS'
-df.head(5)
-df.plot(figsize=(12,6))
-# %% importing additional module
-from statsmodels.tsa.seasonal import seasonal_decompose
-results = seasonal_decompose(df['Production'])
-results.plot()
-# %% training and testing set seperation
-train = df.iloc[:156]
-test = df.iloc[156:]
-# %% loading sklearn
-from sklearn.preprocessing import MinMaxScaler
-scaler = MinMaxScaler()
-# %% training
-df.head(),df.tail()
-scaler.fit(train)
-scaled_train = scaler.transform(train)
-scaled_test = scaler.transform(test)
-scaled_train[:10]
-# %% loading kera timeseries generator
-from keras.preprocessing.sequence import TimeseriesGenerator
-# define generator
-n_input = 3
-n_features = 1
-generator = TimeseriesGenerator(scaled_train, scaled_train, length=n_input, batch_size=1)
-X,y = generator[0]
-print(f'Given the Array: \n{X.flatten()}')
-print(f'Predict this y: \n {y}')
-
-X.shape
-
-# We do the same thing, but now instead for 12 months
-n_input = 12
-generator = TimeseriesGenerator(scaled_train, scaled_train, length=n_input, batch_size=1)
-
-# %% loading keras LSTM and other libs
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.layers import LSTM
-
-# define model
-model = Sequential()
-model.add(LSTM(100, activation='relu', input_shape=(n_input, n_features)))
-model.add(Dense(1))
-model.compile(optimizer='adam', loss='mse')
-
-model.summary()
-
-# fit model
-model.fit(generator,epochs=50)
-
-loss_per_epoch = model.history.history['loss']
-plt.plot(range(len(loss_per_epoch)),loss_per_epoch)
-last_train_batch = scaled_train[-12:]
-last_train_batch = last_train_batch.reshape((1, n_input, n_features))
-model.predict(last_train_batch)
-scaled_test[0]
-test_predictions = []
-
-first_eval_batch = scaled_train[-n_input:]
-current_batch = first_eval_batch.reshape((1, n_input, n_features))
-
-for i in range(len(test)):
-    
-    # get the prediction value for the first batch
-    current_pred = model.predict(current_batch)[0]
-    
-    # append the prediction into the array
-    test_predictions.append(current_pred) 
-    
-    # use the prediction to update the batch and remove the first value
-    current_batch = np.append(current_batch[:,1:,:],[[current_pred]],axis=1)
-test_predictions
-test.head()
-true_predictions = scaler.inverse_transform(test_predictions)
-test['Predictions'] = true_predictions
-test.plot(figsize=(14,5))
-# %% sequare rooting data
-from sklearn.metrics import mean_squared_error
-from math import sqrt
-rmse=sqrt(mean_squared_error(test['Production'],test['Predictions']))
-print(rmse)
-# %%
-
 import pickle
-  
+import tensorflow as tf 
+print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+
+# %% 
+# manual training data
+data = pd.read_csv('datasets/graduation_rate.csv')
+data1 = np.array(data['ACT composite score'])
+data2 = np.array(data['SAT total score'])
+data3 = np.array(data['parental income'])
+data4 = np.array(data['high school gpa'])
+data5 = np.array(data['college gpa'])
+data6 = np.array(data['years to graduate'])
+# %%
+def segmentation(start,end):
+    X = []
+    y = []
+    for i in range(start,end):
+        segment = [[data1[i]],[data2[i]],[data3[i]],[data4[i]],[data5[i]]]
+        X.append(segment)
+        y.append([(data6[i])])
+    return np.array(X),np.array(y)
+
+# %%
+segment_length = len(data)
+divide = int(len(data)*0.8)
+X_train , y_train = segmentation(0,divide)
+X_test , y_test = segmentation(divide,len(data))
+
+print(X_train.shape)
+# print(len(X_train))
+# print(y_train)
+# print(len(y_train))
+# X_train = np.array([[[0,1,0,1]],[[0,0,1,1]]])
+# print(X_train.shape)
+# y_train = np.array([[0],[1]])
+# print(y_train.shape)
+
+# %% Creating the neural network model
+model = Sequential()
+
+# Adding the layers to the model
+model.add(LSTM(64, input_shape=(5,1))) # LSTM layer with 8 neurons, input shape of (1, 4)
+model.add(Dense(32, activation='relu')) # Hidden layer with neurons
+model.add(Dense(32, activation='relu')) # Hidden layer with neurons
+model.add(Dense(32, activation='relu')) # Hidden layer with neurons
+model.add(Dense(32, activation='relu')) # Hidden layer with neurons
+model.add(Dense(32, activation='relu')) # Hidden layer with neurons
+model.add(Dense(32, activation='relu')) # Hidden layer with neurons
+model.add(Dense(1, activation='linear')) # Output layer with 1 neuron
+
+linear_loss ='mean_squared_error'
+sigmoid_loss = 'binary_crossentropy'
+
+# Compiling the model
+model.compile(loss=linear_loss, optimizer='RMSprop', metrics=['accuracy'])
+# %% Training the model
+history = model.fit(X_train, y_train, epochs=50, batch_size=5)
+plt.plot(history.history['loss'], label='Training Loss')
+plt.legend()
+plt.show()
+# %%
+# loading test data
+# X_test = np.array([[[0,1,0,1]],[[0,0,1,1]]])
+# y_test = np.array([[0],[1]])
+# evaluating model
+score = model.evaluate(X_test, y_test, batch_size=1)
+print("Accuracy: %.2f%%" % (score[0]*100))
+# %%
+# printing pridiction score
+y_pred = model.predict(X_test)
+plt.plot(y_test, label='Actual')
+plt.plot(y_pred, label='Predicted')
+plt.legend()
+plt.show()
+# %%
+pred_data = np.array([[[0],[0],[0],[4.0]]])
+y_pred = model.predict(pred_data)
+y_pred
+# %%
 # Save the trained model as a pickle string.
 saved_model = pickle.dumps(model)
 # %%
 saved_model
 # %%
-file = open("model.txt","wb")
+file = open(input("enter name of model:"),"wb")
 file.write(saved_model)
 # %%
